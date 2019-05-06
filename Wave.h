@@ -81,5 +81,5 @@ uint16_t wave() {
     hue++;
   }
 
-  return 0;
+  return 5;
 }

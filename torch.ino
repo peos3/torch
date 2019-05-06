@@ -17,7 +17,6 @@
  */
 
 #include <FastLED.h>
-#include <IRremote.h>
 #include <EEPROM.h>
 #include <Bounce2.h>
 
@@ -25,14 +24,32 @@
 #error "Requires FastLED 3.1 or later; check github for latest code."
 #endif
 
-#define LED_PIN     11
-#define IR_RECV_PIN 12
+#define LED_PIN     13
 #define COLOR_ORDER GRB
 #define CHIPSET     WS2812B
-#define NUM_LEDS    240
+#define NUM_LEDS    120
 
-const uint8_t MATRIX_WIDTH = 14;
-const uint8_t MATRIX_HEIGHT = 17;
+uint16_t XY(uint8_t x, uint8_t y);
+void dimAll(byte value);
+uint16_t colorWaves();
+uint16_t pride();
+uint16_t cloudTwinkles();
+uint16_t rainbowTwinkles();
+uint16_t snowTwinkles();
+uint16_t incandescentTwinkles();
+uint16_t fireflies();
+uint16_t rainbow();
+uint16_t rainbowWithGlitter();
+void addGlitter(fract8 chanceOfGlitter);
+uint16_t confetti();
+uint16_t bpm();
+uint16_t juggle();
+uint16_t showSolidColor();
+uint16_t hueCycle();
+uint16_t sinelon();
+
+const uint8_t MATRIX_WIDTH = 10;
+const uint8_t MATRIX_HEIGHT = 12;
 
 const int MATRIX_CENTER_X = MATRIX_WIDTH / 2;
 const int MATRIX_CENTER_Y = MATRIX_HEIGHT / 2;
@@ -45,18 +62,16 @@ uint8_t brightnessMap[brightnessCount] = { 16, 32, 64, 128, 255 };
 uint8_t brightness = brightnessMap[0];
 
 CRGB leds[NUM_LEDS + 1];
-IRrecv irReceiver(IR_RECV_PIN);
 
-#define BUTTON_1_PIN 16
-#define BUTTON_2_PIN 17
+#define BUTTON_1_PIN 2
+#define BUTTON_2_PIN 3
 
 Bounce button1 = Bounce();
 Bounce button2 = Bounce();
 
-#include "Commands.h"
 #include "GradientPalettes.h"
 
-CRGB solidColor = CRGB::White;
+CRGB solidColor (122, 75, 10);
 
 typedef uint16_t(*PatternFunctionPointer)();
 typedef PatternFunctionPointer PatternList [];
@@ -65,8 +80,6 @@ typedef PatternFunctionPointer PatternList [];
 int autoPlayDurationSeconds = 10;
 unsigned int autoPlayTimout = 0;
 bool autoplayEnabled = false;
-
-InputCommand command;
 
 int currentPatternIndex = 0;
 PatternFunctionPointer currentPattern;
@@ -98,58 +111,45 @@ uint8_t gHue = 0; // rotating "base color" used by many of the patterns
 
 #include "Drawing.h"
 #include "Effects.h"
-
 #include "Noise.h"
 #include "Pulse.h"
 #include "Wave.h"
 #include "Fire2012WithPalette.h"
 #include "Torch.h"
-#include "AudioLogic.h"
-#include "AudioPatterns.h"
 
 const PatternList patterns = {
-  analyzerColumns,
-  analyzerColumnsSolid,
-  analyzerPixels,
-  fallingSpectrogram,
-  audioFire,
-  rainbowAudioNoise,
-  rainbowStripeAudioNoise,
-  partyAudioNoise,
-  forestAudioNoise,
-  cloudAudioNoise,
-  fireAudioNoise,
-  lavaAudioNoise,
-  oceanAudioNoise,
-  blackAndWhiteAudioNoise,
-  blackAndBlueAudioNoise,
-  fireNoise,
-  lavaNoise,
+ // analyzerColumns,
+ //analyzerColumnsSolid,
+ // analyzerPixels,
+ // fallingSpectrogram
   torch,
-  fire2012WithPalette,
-  rainbowNoise,
-  rainbowStripeNoise,
-  partyNoise,
-  forestNoise,
-  cloudNoise,
-  oceanNoise,
-  blackAndWhiteNoise,
-  blackAndBlueNoise,
+  //  fire2012WithPalette,
   pulse,
+  //blackAndBlueNoise,
+  //fireNoise,
+  //lavaNoise,
   wave,
+  //rainbowNoise,
+  //rainbowStripeNoise,  
+  // blackAndWhiteAudioNoise,  
+  //colorWaves,  
+  //partyNoise,
+  //forestNoise,
+  //cloudNoise,
+  //oceanNoise,
+  // blackAndWhiteNoise,  
   pride,
-  colorWaves,
-  rainbow,
-  rainbowWithGlitter,
+   //rainbow,
+  //rainbowWithGlitter,
   confetti,
-  bpm,
+  //bpm,
   juggle,
   sinelon,
-  hueCycle,
+  //hueCycle,
   rainbowTwinkles,
-  snowTwinkles,
-  cloudTwinkles,
-  incandescentTwinkles,
+  //snowTwinkles,
+  //cloudTwinkles,
+  //incandescentTwinkles,
   fireflies,
   showSolidColor
 };
@@ -169,10 +169,6 @@ void setup() {
   //  FastLED.setDither(false);
   FastLED.setDither(brightness < 255);
 
-  // Initialize the IR receiver
-  irReceiver.enableIRIn();
-  irReceiver.blink13(true);
-
   pinMode(BUTTON_1_PIN, INPUT_PULLUP);
   pinMode(BUTTON_2_PIN, INPUT_PULLUP);
   button1.attach(BUTTON_1_PIN);
@@ -184,8 +180,6 @@ void setup() {
 
   autoPlayTimout = millis() + (autoPlayDurationSeconds * 1000);
 
-  initializeAudio();
-
   // Serial.println("setup end");
 }
 
@@ -193,20 +187,15 @@ void loop() {
   // Add entropy to random number generator; we use a lot of it.
   random16_add_entropy(random());
 
-  EVERY_N_MILLISECONDS(30) {
-    readAudio();
-  }
-
   uint16_t requestedDelay = currentPattern();
-
   FastLED.show(); // display this frame
 
   handleInput(requestedDelay);
 
-  if (autoplayEnabled && millis() > autoPlayTimout) {
-    move(1);
-    autoPlayTimout = millis() + (autoPlayDurationSeconds * 1000);
-  }
+  //if (autoplayEnabled && millis() > autoPlayTimout) {
+   // move(1);
+   // autoPlayTimout = millis() + (autoPlayDurationSeconds * 1000);
+  //}
 
   // do some periodic updates
   EVERY_N_MILLISECONDS(20) {
@@ -237,7 +226,7 @@ void loadSettings() {
   solidColor.b = EEPROM.read(4);
 
   if (solidColor.r == 0 && solidColor.g == 0 && solidColor.b == 0)
-    solidColor = CRGB::White;
+    setSolidColor(solidColor.setRGB(122,75,10));
 }
 
 void setSolidColor(CRGB color) {
@@ -277,10 +266,6 @@ void powerOff()
       return;
     }
 
-    // check for ir remote input
-    InputCommand command = readCommand();
-    if (command != InputCommand::None)
-      return;
   }
 }
 
@@ -359,7 +344,8 @@ unsigned long button1PressTimeStamp;
 unsigned long button2PressTimeStamp;
 
 void handleInput(unsigned int requestedDelay) {
-  unsigned int requestedDelayTimeout = millis() + requestedDelay;
+  
+  unsigned long previousMillis = millis();
 
   while (true) {
     // check for physical button input
@@ -386,220 +372,8 @@ void handleInput(unsigned int requestedDelay) {
       powerOff();
       break;
     }
-
-    command = readCommand(defaultHoldDelay);
-
-    if (command != InputCommand::None) {
-      // Serial.print("command: ");
-      // Serial.println((int) command);
-    }
-
-    if (command == InputCommand::Up) {
-      move(1);
-      break;
-    }
-    else if (command == InputCommand::Down) {
-      move(-1);
-      break;
-    }
-    else if (command == InputCommand::Brightness) {
-      if (isHolding || cycleBrightness() == 0) {
-        heldButtonHasBeenHandled();
-        powerOff();
-        break;
-      }
-    }
-    else if (command == InputCommand::Power) {
-      powerOff();
-      break;
-    }
-    else if (command == InputCommand::BrightnessUp) {
-      adjustBrightness(1);
-    }
-    else if (command == InputCommand::BrightnessDown) {
-      adjustBrightness(-1);
-    }
-    else if (command == InputCommand::PlayMode) { // toggle pause/play
-      autoplayEnabled = !autoplayEnabled;
-    }
-    else if (command == InputCommand::NextPalette) { // cycle color palette
-      cyclePalette(1);
-    }
-    else if (command == InputCommand::PreviousPalette) { // cycle color palette
-      cyclePalette(-1);
-    }
-
-    // pattern buttons
-
-    else if (command == InputCommand::Pattern1) {
-      moveTo(0);
-      break;
-    }
-    else if (command == InputCommand::Pattern2) {
-      moveTo(1);
-      break;
-    }
-    else if (command == InputCommand::Pattern3) {
-      moveTo(2);
-      break;
-    }
-    else if (command == InputCommand::Pattern4) {
-      moveTo(3);
-      break;
-    }
-    else if (command == InputCommand::Pattern5) {
-      moveTo(4);
-      break;
-    }
-    else if (command == InputCommand::Pattern6) {
-      moveTo(5);
-      break;
-    }
-    else if (command == InputCommand::Pattern7) {
-      moveTo(6);
-      break;
-    }
-    else if (command == InputCommand::Pattern8) {
-      moveTo(7);
-      break;
-    }
-    else if (command == InputCommand::Pattern9) {
-      moveTo(8);
-      break;
-    }
-    else if (command == InputCommand::Pattern10) {
-      moveTo(9);
-      break;
-    }
-    else if (command == InputCommand::Pattern11) {
-      moveTo(10);
-      break;
-    }
-    else if (command == InputCommand::Pattern12) {
-      moveTo(11);
-      break;
-    }
-
-    // custom color adjustment buttons
-
-    else if (command == InputCommand::RedUp) {
-      solidColor.red += 1;
-      setSolidColor(solidColor);
-      break;
-    }
-    else if (command == InputCommand::RedDown) {
-      solidColor.red -= 1;
-      setSolidColor(solidColor);
-      break;
-    }
-    else if (command == InputCommand::GreenUp) {
-      solidColor.green += 1;
-      setSolidColor(solidColor); \
-      break;
-    }
-    else if (command == InputCommand::GreenDown) {
-      solidColor.green -= 1;
-      setSolidColor(solidColor);
-      break;
-    }
-    else if (command == InputCommand::BlueUp) {
-      solidColor.blue += 1;
-      setSolidColor(solidColor);
-      break;
-    }
-    else if (command == InputCommand::BlueDown) {
-      solidColor.blue -= 1;
-      setSolidColor(solidColor);
-      break;
-    }
-
-    // color buttons
-
-    else if (command == InputCommand::Red && currentPatternIndex != patternCount - 2 && currentPatternIndex != patternCount - 3) { // Red, Green, and Blue buttons can be used by ColorInvaders game, which is the next to last pattern
-      setSolidColor(CRGB::Red);
-      break;
-    }
-    else if (command == InputCommand::RedOrange) {
-      setSolidColor(CRGB::OrangeRed);
-      break;
-    }
-    else if (command == InputCommand::Orange) {
-      setSolidColor(CRGB::Orange);
-      break;
-    }
-    else if (command == InputCommand::YellowOrange) {
-      setSolidColor(CRGB::Goldenrod);
-      break;
-    }
-    else if (command == InputCommand::Yellow) {
-      setSolidColor(CRGB::Yellow);
-      break;
-    }
-
-    else if (command == InputCommand::Green && currentPatternIndex != patternCount - 2 && currentPatternIndex != patternCount - 3) { // Red, Green, and Blue buttons can be used by ColorInvaders game, which is the next to last pattern
-      setSolidColor(CRGB::Green);
-      break;
-    }
-    else if (command == InputCommand::Lime) {
-      setSolidColor(CRGB::Lime);
-      break;
-    }
-    else if (command == InputCommand::Aqua) {
-      setSolidColor(CRGB::Aqua);
-      break;
-    }
-    else if (command == InputCommand::Teal) {
-      setSolidColor(CRGB::Teal);
-      break;
-    }
-    else if (command == InputCommand::Navy) {
-      setSolidColor(CRGB::Navy);
-      break;
-    }
-
-    else if (command == InputCommand::Blue && currentPatternIndex != patternCount - 2 && currentPatternIndex != patternCount - 3) { // Red, Green, and Blue buttons can be used by ColorInvaders game, which is the next to last pattern
-      setSolidColor(CRGB::Blue);
-      break;
-    }
-    else if (command == InputCommand::RoyalBlue) {
-      setSolidColor(CRGB::RoyalBlue);
-      break;
-    }
-    else if (command == InputCommand::Purple) {
-      setSolidColor(CRGB::Purple);
-      break;
-    }
-    else if (command == InputCommand::Indigo) {
-      setSolidColor(CRGB::Indigo);
-      break;
-    }
-    else if (command == InputCommand::Magenta) {
-      setSolidColor(CRGB::Magenta);
-      break;
-    }
-
-    else if (command == InputCommand::White && currentPatternIndex != patternCount - 2 && currentPatternIndex != patternCount - 3) {
-      setSolidColor(CRGB::White);
-      break;
-    }
-    else if (command == InputCommand::Pink) {
-      setSolidColor(CRGB::Pink);
-      break;
-    }
-    else if (command == InputCommand::LightPink) {
-      setSolidColor(CRGB::LightPink);
-      break;
-    }
-    else if (command == InputCommand::BabyBlue) {
-      setSolidColor(CRGB::CornflowerBlue);
-      break;
-    }
-    else if (command == InputCommand::LightBlue) {
-      setSolidColor(CRGB::LightBlue);
-      break;
-    }
-
-    if (millis() >= requestedDelayTimeout)
+    
+    if ((millis() - previousMillis) >= requestedDelay)
       break;
   }
 }
@@ -660,7 +434,7 @@ uint16_t confetti()
   fadeToBlackBy(leds, NUM_LEDS, 10);
   int pos = random16(NUM_LEDS);
   leds[pos] += ColorFromPalette(palette, gHue + random8(64), 255); // CHSV(gHue + random8(64), 200, 255);
-  return 8;
+  return 20;
 }
 
 uint16_t bpm()
@@ -683,7 +457,7 @@ uint16_t juggle() {
     leds[beatsin16(i + dotCount - 1, 0, NUM_LEDS)] |= CHSV(dothue, 200, 255);
     dothue += 256 / dotCount;
   }
-  return 0;
+  return 5;
 }
 
 // An animation to play while the crowd goes wild after the big performance
@@ -718,7 +492,7 @@ uint16_t sinelon()
   }
   prevpos = pos;
 
-  return 8;
+  return 15;
 }
 
 uint16_t hueCycle() {
@@ -887,7 +661,7 @@ uint16_t rainbowTwinkles()
 {
   DENSITY = 255;
   colortwinkles(RainbowColors_p);
-  return 20;
+  return 25;
 }
 
 uint16_t snowTwinkles()

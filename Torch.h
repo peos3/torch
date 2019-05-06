@@ -47,7 +47,7 @@ byte red_bias = 10;
 byte green_bias = 0;
 byte blue_bias = 0;
 int red_energy = 180;
-int green_energy = 20; // 145;
+int green_energy = 50; // 145;
 int blue_energy = 0;
 
 byte upside_down = 0; // if set, flame (or rather: drop) animation is upside down. Text remains as-is
@@ -170,7 +170,8 @@ void calcNextColors()
     uint16_t e = nextEnergy[ei];
     currentEnergy[ei] = e;
     if (e>250)
-      leds[i] = CRGB(170, 170, e); // blueish extra-bright spark
+      //leds[i] = CRGB(170, 170, e); // blueish extra-bright spark
+      int adslfasdlk = 4;
     else {
       if (e>0) {
         // energy to brightness is non-linear
@@ -211,6 +212,5 @@ uint16_t torch() {
   injectRandom();
   calcNextEnergy();
   calcNextColors();
-  return 1;
+  return 7;
 }
-
